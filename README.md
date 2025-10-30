@@ -2,6 +2,9 @@
 
 # Phishing Website Detection using Machine Learning
 
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![Scikit-learn](https://img.shields.io/badge/scikit--learn-1.4-orange)
+![Status](https://img.shields.io/badge/Status-Active-success)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
