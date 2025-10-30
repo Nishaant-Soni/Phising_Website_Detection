@@ -2,6 +2,8 @@
 
 # Phishing Website Detection using Machine Learning
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
 ## Overview
 This project builds and compares multiple machine learning models to detect phishing websites based on URL, domain, and content-based features. The dataset comes from the UCI Machine Learning Repository.
 
