@@ -6,4 +6,8 @@ seaborn
 shap
 xgboost
 torch
-jupyter
+requests
+beautifulsoup4
+python-whois
+python-dateutil
+googlesearch-python
