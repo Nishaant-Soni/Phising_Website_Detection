@@ -1,6 +1,14 @@
-"""
-Feature Extraction Pipeline for Phishing Website Detection
-Extracts 30 features from a URL to detect phishing websites
+"""Feature extraction utilities for phishing website detection.
+
+This module provides a single class, :class:`FeatureExtraction`, which
+extracts a fixed set of features (30 features) from a given URL. Each
+feature method returns an integer label typically encoded as:
+
+    -1 : suspicious/malicious
+     0 : suspicious/neutral
+     1 : legitimate
+
+The module also exposes a convenience function :func:`extract_features_from_url`.
 """
 
 import ipaddress
@@ -17,8 +25,38 @@ from urllib.parse import urlparse
 from googlesearch import search
 
 class FeatureExtraction:
+    """Extract features from a single URL.
+
+    The instance stores the original URL, parsed domain information,
+    any fetched HTTP response and a BeautifulSoup-parsed DOM when
+    available. Features are computed eagerly during initialization and
+    stored in :attr:`features` in a fixed order that matches the dataset
+    column mapping used in the project.
+
+    Attributes
+    ----------
+    url : str
+        The full URL to analyze.
+    domain : str
+        The parsed network location (netloc) component of the URL.
+    whois_response : object
+        Raw response from the ``whois`` library for the domain when
+        available; may be ``None`` or empty on failure.
+    urlparse : ParseResult
+        Result of :func:`urllib.parse.urlparse` for the given URL.
+    response : requests.Response
+        The HTTP response returned by ``requests.get(url)`` when the
+        request succeeds; otherwise may be ``None``.
+    soup : BeautifulSoup
+        Parsed HTML document (BeautifulSoup) for the response text when
+        available; otherwise may be ``None``.
+    features : list[int]
+        Computed feature values in the canonical order.
+    """
+
     features = []
-    def __init__(self,url):
+
+    def __init__(self, url):
         self.features = []
         self.url = url
         self.domain = ""
@@ -79,12 +117,17 @@ class FeatureExtraction:
 
     # 1.UsingIp - having_IP_Address
     def UsingIp(self):
+        """Detect whether the domain is an IP address.
+
+        Returns
+        -------
+        int
+            -1 if the domain is an IP address (suspicious), otherwise 1.
+        """
         try:
             host = self.domain
-            # strip port if present
             if ':' in host:
                 host = host.split(':', 1)[0]
-            # IPv6 may be wrapped in [ ]
             host = host.strip('[]')
             ipaddress.ip_address(host)
             return -1
@@ -93,6 +136,13 @@ class FeatureExtraction:
 
     # 2.longUrl - URL_Length
     def longUrl(self):
+        """Assess URL length.
+
+        Returns
+        -------
+        int
+            1 for short (legitimate), 0 for medium (suspicious), -1 for long (malicious).
+        """
         if len(self.url) < 54:
             return 1
         if len(self.url) >= 54 and len(self.url) <= 75:
@@ -101,6 +151,15 @@ class FeatureExtraction:
 
     # 3.shortUrl - Shortining_Service
     def shortUrl(self):
+        """Detect known URL shortening services.
+
+        Many phishing URLs use URL shorteners to hide the final destination.
+
+        Returns
+        -------
+        int
+            -1 if a known shortening service is detected, otherwise 1.
+        """
         match = re.search(
             r'bit\.ly|goo\.gl|shorte\.st|go2l\.ink|x\.co|ow\.ly|t\.co|tinyurl|tr\.im|is\.gd|cli\.gs|'
             r'yfrog\.com|migre\.me|ff\.im|tiny\.cc|url4\.eu|twit\.ac|su\.pr|twurl\.nl|snipurl\.com|'
@@ -117,18 +176,41 @@ class FeatureExtraction:
 
     # 4.Symbol@ - having_At_Symbol
     def symbol(self):
-        if re.findall("@",self.url):
+        """Detect presence of '@' symbol in the URL.
+
+        '@' is sometimes used to trick parsers and hide the real destination.
+
+        Returns
+        -------
+        int
+            -1 if '@' is present (suspicious), otherwise 1.
+        """
+        if re.findall("@", self.url):
             return -1
         return 1
     
     # 5.Redirecting// - double_slash_redirecting
     def redirecting(self):
-        if self.url.rfind('//')>6:
+        """Detect suspicious double-slash redirects in the URL path.
+
+        Returns
+        -------
+        int
+            -1 if a redirecting pattern is detected, otherwise 1.
+        """
+        if self.url.rfind('//') > 6:
             return -1
         return 1
     
     # 6.prefixSuffix - Prefix_Suffix
     def prefixSuffix(self):
+        """Detect '-' character in the domain (prefix/suffix usage).
+
+        Returns
+        -------
+        int
+            -1 if '-' is present in the domain (suspicious), otherwise 1.
+        """
         try:
             match = re.findall(r'\-', self.domain)
             if match:
@@ -139,12 +221,17 @@ class FeatureExtraction:
     
     # 7.SubDomains - having_Sub_Domain
     def SubDomains(self):
-        # Count dots only in the host (not in path/query)
+        """Estimate the number of subdomains.
+
+        Returns
+        -------
+        int
+            1 for one dot (no subdomain), 0 for two dots (possible subdomain), -1 for more (suspicious).
+        """
         host = self.domain
         if ':' in host:
             host = host.split(':', 1)[0]
         host = host.lower()
-        # Normalize common prefix
         if host.startswith('www.'):
             host = host[4:]
         dot_count = host.count('.')
@@ -156,6 +243,13 @@ class FeatureExtraction:
 
     # 8.HTTPS - SSLfinal_State
     def Https(self):
+        """Check whether the URL uses HTTPS.
+
+        Returns
+        -------
+        int
+            1 if HTTPS is present (legitimate), -1 otherwise.
+        """
         try:
             https = self.urlparse.scheme
             if 'https' in https:
@@ -166,6 +260,15 @@ class FeatureExtraction:
 
     # 9.DomainRegLen - Domain_registeration_length
     def DomainRegLen(self):
+        """Estimate domain registration length using WHOIS data.
+
+        Uses the WHOIS creation and expiration dates to compute age in months.
+
+        Returns
+        -------
+        int
+            1 if age >= 12 months (legitimate), -1 otherwise.
+        """
         try:
             expiration_date = self.whois_response.expiration_date
             creation_date = self.whois_response.creation_date
@@ -189,6 +292,13 @@ class FeatureExtraction:
 
     # 10. Favicon
     def Favicon(self):
+        """Check if the favicon is loaded from the same domain.
+
+        Returns
+        -------
+        int
+            1 if favicon appears to be from the same domain or URL, -1 otherwise.
+        """
         try:
             for head in self.soup.find_all('head'):
                 for head.link in self.soup.find_all('link', href=True):
@@ -201,9 +311,16 @@ class FeatureExtraction:
 
     # 11. NonStdPort - port
     def NonStdPort(self):
+        """Detect if a non-standard port is included in the domain.
+
+        Returns
+        -------
+        int
+            -1 if a port specification exists (suspicious), otherwise 1.
+        """
         try:
             port = self.domain.split(":")
-            if len(port)>1:
+            if len(port) > 1:
                 return -1
             return 1
         except:
@@ -211,6 +328,16 @@ class FeatureExtraction:
 
     # 12. HTTPSDomainURL - HTTPS_token
     def HTTPSDomainURL(self):
+        """Detect 'https' token in the domain name.
+
+        Some phishing domains include the token 'https' in the domain
+        itself to appear secure; this method flags that.
+
+        Returns
+        -------
+        int
+            -1 if 'https' appears in the domain, otherwise 1.
+        """
         try:
             if 'https' in self.domain:
                 return -1
@@ -220,6 +347,16 @@ class FeatureExtraction:
     
     # 13. RequestURL - Request_URL
     def RequestURL(self):
+        """Assess external resource usage (images, embeds, iframes).
+
+        Calculates the percentage of internal resources vs total and
+        returns a label according to common phishing heuristics.
+
+        Returns
+        -------
+        int
+            1 if mostly internal (legitimate), 0 if medium, -1 if mostly external.
+        """
         try:
             total = 0
             internal = 0
@@ -231,7 +368,6 @@ class FeatureExtraction:
                 if not parsed.netloc:
                     # relative path => internal
                     return False
-                # Compare hostnames (strip ports)
                 a = parsed.netloc.split(':', 1)[0].lower()
                 b = self.domain.split(':', 1)[0].lower()
                 return a != b
@@ -258,6 +394,13 @@ class FeatureExtraction:
     
     # 14. AnchorURL - URL_of_Anchor
     def AnchorURL(self):
+        """Analyze anchor (<a>) tags to determine suspicious links.
+
+        Returns
+        -------
+        int
+            1 if anchors are mostly safe/internal, 0 if mixed, -1 if mostly unsafe/external.
+        """
         try:
             total = 0
             unsafe = 0
@@ -296,6 +439,13 @@ class FeatureExtraction:
 
     # 15. LinksInScriptTags - Links_in_tags
     def LinksInScriptTags(self):
+        """Analyze link and script tags for external references.
+
+        Returns
+        -------
+        int
+            1 if mostly internal, 0 if mixed, -1 if mostly external.
+        """
         try:
             total = 0
             internal = 0
@@ -333,10 +483,18 @@ class FeatureExtraction:
 
     # 16. ServerFormHandler - SFH
     def ServerFormHandler(self):
+        """Inspect form action attributes for suspicious behavior.
+
+        Returns
+        -------
+        int
+            1 if forms post to same domain or no forms, 0 if posting to external
+            domains, -1 if forms post to mailto/about:blank or appear suspicious.
+        """
         try:
-            if len(self.soup.find_all('form', action=True))==0:
+            if len(self.soup.find_all('form', action=True)) == 0:
                 return 1
-            else :
+            else:
                 for form in self.soup.find_all('form', action=True):
                     if form['action'] == "" or form['action'] == "about:blank":
                         return -1
@@ -349,6 +507,13 @@ class FeatureExtraction:
 
     # 17. InfoEmail - Submitting_to_email
     def InfoEmail(self):
+        """Check whether the page contains mailto/email submission hooks.
+
+        Returns
+        -------
+        int
+            -1 if an email submission pattern is present (suspicious), otherwise 1.
+        """
         try:
             if re.findall(r"[mail\(\)|mailto:?]", str(self.soup)):
                 return -1
@@ -359,6 +524,13 @@ class FeatureExtraction:
 
     # 18. AbnormalURL - Abnormal_URL
     def AbnormalURL(self):
+        """Check WHOIS information for abnormal or missing domain name.
+
+        Returns
+        -------
+        int
+            1 if domain_name exists in WHOIS (likely legitimate), -1 otherwise.
+        """
         try:
             info = self.whois_response
             if not info:
@@ -372,6 +544,13 @@ class FeatureExtraction:
 
     # 19. WebsiteForwarding - Redirect
     def WebsiteForwarding(self):
+        """Measure the number of HTTP redirects encountered.
+
+        Returns
+        -------
+        int
+            1 if no/small number of redirects, 0 if moderate, -1 if many redirects.
+        """
         try:
             if len(self.response.history) <= 1:
                 return 1
@@ -380,59 +559,93 @@ class FeatureExtraction:
             else:
                 return -1
         except:
-             return -1
+            return -1
 
     # 20. StatusBarCust - on_mouseover
     def StatusBarCust(self):
+        """Detect use of onmouseover/script tags that change the status bar.
+
+        Returns
+        -------
+        int
+            -1 if suspicious onmouseover scripts are found, otherwise 1.
+        """
         try:
             if re.findall("<script>.+onmouseover.+</script>", self.response.text):
                 return -1
             else:
                 return 1
         except:
-             return 1
+            return 1
 
     # 21. DisableRightClick - RightClick
     def DisableRightClick(self):
+        """Detect scripts that disable right-click.
+
+        Returns
+        -------
+        int
+            -1 if right-click disabling code is present, otherwise 1.
+        """
         try:
             if re.findall(r"event.button ?== ?2", self.response.text):
                 return -1
             else:
                 return 1
         except:
-             return 1
+            return 1
 
     # 22. UsingPopupWindow - popUpWidnow
     def UsingPopupWindow(self):
+        """Detect use of JavaScript alert/pop-up windows.
+
+        Returns
+        -------
+        int
+            -1 if alerts are present (suspicious), otherwise 1.
+        """
         try:
             if re.findall(r"alert\(", self.response.text):
                 return -1
             else:
                 return 1
         except:
-             return 1
+            return 1
 
     # 23. IframeRedirection - Iframe
     def IframeRedirection(self):
+        """Detect presence of iframes in the page.
+
+        Returns
+        -------
+        int
+            -1 if an iframe is present (suspicious), otherwise 1.
+        """
         try:
-            # Presence of iframe element is considered suspicious in this feature set
             return -1 if self.soup and self.soup.find('iframe') else 1
         except:
             return 1
 
     # 24. AgeofDomain - age_of_domain
     def AgeofDomain(self):
+        """Estimate the age of the domain in months from WHOIS creation date.
+
+        Returns
+        -------
+        int
+            1 if age >= 6 months (less suspicious), otherwise -1.
+        """
         try:
             creation_date = self.whois_response.creation_date
             try:
-                if(len(creation_date)):
+                if (len(creation_date)):
                     creation_date = creation_date[0]
             except:
                 pass
 
-            today  = date.today()
-            age = (today.year-creation_date.year)*12+(today.month-creation_date.month)
-            if age >=6:
+            today = date.today()
+            age = (today.year - creation_date.year) * 12 + (today.month - creation_date.month)
+            if age >= 6:
                 return 1
             return -1
         except:
@@ -440,8 +653,14 @@ class FeatureExtraction:
 
     # 25. DNSRecording - DNSRecord
     def DNSRecording(self):
+        """Verify that the domain resolves via DNS.
+
+        Returns
+        -------
+        int
+            1 if DNS resolution succeeds, -1 otherwise.
+        """
         try:
-            # Resolve DNS A record for the domain
             host = self.domain.split(':', 1)[0]
             socket.gethostbyname(host)
             return 1
@@ -450,6 +669,16 @@ class FeatureExtraction:
 
     # 26. WebsiteTraffic - web_traffic
     def WebsiteTraffic(self):
+        """Placeholder for website traffic feature (e.g., Alexa rank).
+
+        Because public APIs are deprecated, this implementation returns a
+        neutral value by default.
+
+        Returns
+        -------
+        int
+            0 (neutral) in the current implementation.
+        """
         try:
             # Alexa API is deprecated. Default to neutral when unknown.
             return 0
@@ -458,6 +687,15 @@ class FeatureExtraction:
 
     # 27. PageRank - Page_Rank
     def PageRank(self):
+        """Placeholder for PageRank feature.
+
+        Legacy Google PageRank is deprecated; this returns a neutral value.
+
+        Returns
+        -------
+        int
+            0 (neutral) in the current implementation.
+        """
         try:
             # Google PageRank is deprecated. Default to neutral when unknown.
             return 0
@@ -467,6 +705,13 @@ class FeatureExtraction:
 
     # 28. GoogleIndex - Google_Index
     def GoogleIndex(self):
+        """Check whether the URL is indexed by a web search.
+
+        Returns
+        -------
+        int
+            1 if the URL appears in search results, -1 if not, 1 on error (conservative).
+        """
         try:
             site = search(self.url, 5)
             if site:
@@ -478,6 +723,13 @@ class FeatureExtraction:
 
     # 29. LinksPointingToPage - Links_pointing_to_page
     def LinksPointingToPage(self):
+        """Count links pointing to the page and classify by count.
+
+        Returns
+        -------
+        int
+            -1 if no links (suspicious), 0 if few links, 1 if many links.
+        """
         try:
             number_of_links = len(re.findall(r"<a href=", self.response.text))
             if number_of_links == 0:
@@ -491,16 +743,32 @@ class FeatureExtraction:
 
     # 30. StatsReport - Statistical_report
     def StatsReport(self):
+        """Perform a lightweight blacklist check against known bad hosts/IPs.
+
+        This method uses a short hard-coded list of suspicious host patterns
+        and IP addresses and returns -1 if a match is found. It is a
+        heuristic and not a comprehensive threat intelligence check.
+
+        Returns
+        -------
+        int
+            -1 if the URL or resolved IP matches the built-in blacklist, otherwise 1.
+        """
         try:
             url_match = re.search(
-        r'at\.ua|usa\.cc|baltazarpresentes\.com\.br|pe\.hu|esy\.es|hol\.es|sweddy\.com|myjino\.ru|96\.lt|ow\.ly', self.url)
+                r'at\.ua|usa\.cc|baltazarpresentes\.com\.br|pe\.hu|esy\.es|hol\.es|sweddy\.com|myjino\.ru|96\.lt|ow\.ly',
+                self.url,
+            )
             ip_address = socket.gethostbyname(self.domain)
-            ip_match = re.search(r'146\.112\.61\.108|213\.174\.157\.151|121\.50\.168\.88|192\.185\.217\.116|78\.46\.211\.158|181\.174\.165\.13|46\.242\.145\.103|121\.50\.168\.40|83\.125\.22\.219|46\.242\.145\.98|'
-                                r'107\.151\.148\.44|107\.151\.148\.107|64\.70\.19\.203|199\.184\.144\.27|107\.151\.148\.108|107\.151\.148\.109|119\.28\.52\.61|54\.83\.43\.69|52\.69\.166\.231|216\.58\.192\.225|'
-                                r'118\.184\.25\.86|67\.208\.74\.71|23\.253\.126\.58|104\.239\.157\.210|175\.126\.123\.219|141\.8\.224\.221|10\.10\.10\.10|43\.229\.108\.32|103\.232\.215\.140|69\.172\.201\.153|'
-                                r'216\.218\.185\.162|54\.225\.104\.146|103\.243\.24\.98|199\.59\.243\.120|31\.170\.160\.61|213\.19\.128\.77|62\.113\.226\.131|208\.100\.26\.234|195\.16\.127\.102|195\.16\.127\.157|'
-                                r'34\.196\.13\.28|103\.224\.212\.222|172\.217\.4\.225|54\.72\.9\.51|192\.64\.147\.141|198\.200\.56\.183|23\.253\.164\.103|52\.48\.191\.26|52\.214\.197\.72|87\.98\.255\.18|209\.99\.17\.27|'
-                                r'216\.38\.62\.18|104\.130\.124\.96|47\.89\.58\.141|78\.46\.211\.158|54\.86\.225\.156|54\.82\.156\.19|37\.157\.192\.102|204\.11\.56\.48|110\.34\.231\.42', ip_address)
+            ip_match = re.search(
+                r'146\.112\.61\.108|213\.174\.157\.151|121\.50\.168\.88|192\.185\.217\.116|78\.46\.211\.158|181\.174\.165\.13|46\.242\.145\.103|121\.50\.168\.40|83\.125\.22\.219|46\.242\.145\.98|'
+                r'107\.151\.148\.44|107\.151\.148\.107|64\.70\.19\.203|199\.184\.144\.27|107\.151\.148\.108|107\.151\.148\.109|119\.28\.52\.61|54\.83\.43\.69|52\.69\.166\.231|216\.58\.192\.225|'
+                r'118\.184\.25\.86|67\.208\.74\.71|23\.253\.126\.58|104\.239\.157\.210|175\.126\.123\.219|141\.8\.224\.221|10\.10\.10\.10|43\.229\.108\.32|103\.232\.215\.140|69\.172\.201\.153|'
+                r'216\.218\.185\.162|54\.225\.104\.146|103\.243\.24\.98|199\.59\.243\.120|31\.170\.160\.61|213\.19\.128\.77|62\.113\.226\.131|208\.100\.26\.234|195\.16\.127\.102|195\.16\.127\.157|'
+                r'34\.196\.13\.28|103\.224\.212\.222|172\.217\.4\.225|54\.72\.9\.51|192\.64\.147\.141|198\.200\.56\.183|23\.253\.164\.103|52\.48\.191\.26|52\.214\.197\.72|87\.98\.255\.18|209\.99\.17\.27|'
+                r'216\.38\.62\.18|104\.130\.124\.96|47\.89\.58\.141|78\.46\.211\.158|54\.86\.225\.156|54\.82\.156\.19|37\.157\.192\.102|204\.11\.56\.48|110\.34\.231\.42',
+                ip_address,
+            )
             if url_match:
                 return -1
             elif ip_match:
@@ -510,6 +778,13 @@ class FeatureExtraction:
             return 1
     
     def getFeaturesList(self):
+        """Return the computed feature list.
+
+        Returns
+        -------
+        list[int]
+            Feature values in the canonical dataset order.
+        """
         return self.features
 
 
@@ -531,12 +806,10 @@ if __name__ == "__main__":
     url = 'https://www.google.com'
     print(f"Extracting features from: {url}")
     
-    # Get features as list (matches dataset order)
     features = extract_features_from_url(url)
     print(f"\nExtracted {len(features)} features:")
     print(features)
     
-    # Column names matching your dataset
     column_names = [
         'having_IP_Address', 'URL_Length', 'Shortining_Service', 'having_At_Symbol',
         'double_slash_redirecting', 'Prefix_Suffix', 'having_Sub_Domain', 'SSLfinal_State',
