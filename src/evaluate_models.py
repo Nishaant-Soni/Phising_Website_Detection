@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 
 def evaluate(model, X_test, y_test, name):
     """Compute metrics for a given model."""
@@ -32,4 +33,10 @@ def evaluate(model, X_test, y_test, name):
 def save_results(metrics_list):
     """Save all model metrics to a summary CSV."""
     df = pd.DataFrame(metrics_list)
-    df.to_csv("results/metrics_summary.csv", index=False)
+    csv_path = "results/metrics_summary.csv"
+    
+    # Check if file exists to determine if we need to write header
+    file_exists = os.path.exists(csv_path)
+    
+    # Append to CSV (write header only if file doesn't exist)
+    df.to_csv(csv_path, mode='a', header=not file_exists, index=False)
