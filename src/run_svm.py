@@ -1,23 +1,34 @@
-from data_preprocessing import load_data, preprocess_data, split_data
+"""run_svm.py
+-----------
+Train and evaluate a Support Vector Machine (SVM) model for phishing website detection.
+
+This script:
+1. Loads pre-split train/test data from data/processed/
+2. Builds and trains an SVM classifier with RBF kernel and hyperparameter tuning
+3. Evaluates the model on the test set
+4. Saves performance metrics to results/metrics_summary.csv (appends if exists)
+5. Generates and saves a confusion matrix visualization
+
+Outputs:
+    - Trained model saved in models/ directory
+    - Metrics appended to results/metrics_summary.csv
+    - Confusion matrix saved to results/confusion_matrices/svm_(rbf).png
+"""
+
+from data_preprocessing import load_split_data
 from model_training import build_models, train_model
 from evaluate_models import evaluate, save_results
 
-# 1. Data
-df = load_data("./data/raw/Training_Dataset.csv")
-X_res, y_res = preprocess_data(df)
-X_train, X_test, y_train, y_test = split_data(X_res, y_res, test_size=0.2)
+# Load pre-split data (run prepare_data.py first if not done)
+X_train, X_test, y_train, y_test = load_split_data()
 
-# 2. Build models
 all_models = build_models()
 metrics_list = []
 
 model = all_models["SVM (RBF)"]
-# 3. Train (with tuning) & save
 best_model = train_model(model, X_train, y_train, "SVM (RBF)")
 
-# 4. Evaluate
 metrics = evaluate(best_model, X_test, y_test, "SVM (RBF)")
 metrics_list.append(metrics)
 
-# 5. Save metrics summary (optional)
 save_results(metrics_list)

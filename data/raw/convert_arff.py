@@ -69,9 +69,9 @@ def parse_arff_to_dataframe(arff_file_path):
 
 def main():
     # File paths
-    arff_file = 'Training Dataset.arff'
-    csv_file = 'Training_Dataset.csv'
-    xlsx_file = 'Training_Dataset.xlsx'
+    arff_file = 'Dataset.arff'
+    csv_file = 'Dataset.csv'
+    xlsx_file = 'Dataset.xlsx'
     
     print("Converting ARFF file to CSV and XLSX formats...")
     print("=" * 60)

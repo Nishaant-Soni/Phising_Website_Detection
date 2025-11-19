@@ -1,6 +1,4 @@
 # Data and outputs
-data/raw/*
-data/processed/*
 results/*
 !data/README.md
 
