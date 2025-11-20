@@ -98,6 +98,7 @@ def train_model(model, X_train, y_train, model_name):
         param_grid = {
             "n_estimators": [100, 200, 300, 400, 500],
             "max_depth": [10, 20, 30, 40, 50]
+    
         }
 
         grid = GridSearchCV(
@@ -117,8 +118,8 @@ def train_model(model, X_train, y_train, model_name):
     elif model_name == "Neural Network":
         param_grid = {
             "hidden_layer_sizes": [(64, 32), (128, 64), (256, 128)],
-            "dropout": [0.0, 0.1, 0.2,0.3,0.4,0.5],
-            "epochs": [100, 200, 300, 400, 500],
+            "max_iter": [200, 300, 400],
+            
         }
 
         grid = GridSearchCV(
