@@ -92,7 +92,46 @@ def train_model(model, X_train, y_train, model_name):
         grid.fit(X_train, y_train)
         print("Best params for SVM (RBF):", grid.best_params_)
         best_model = grid.best_estimator_
+ 
+    # --- Random Forest tuning ---
+    elif model_name == "Random Forest":
+        param_grid = {
+            "n_estimators": [100, 200, 300, 400, 500],
+            "max_depth": [10, 20, 30, 40, 50]
+        }
 
+        grid = GridSearchCV(
+            estimator = model,
+            param_grid= param_grid,
+            scoring="f1",
+            cv=5,
+            n_jobs=-1,
+            verbose=1,
+        )
+
+        grid.fit(X_train, y_train)
+        print("Best params for Random Forest:", grid.best_params_)
+        best_model = grid.best_estimator_
+
+    # -- DNN tuning ---
+    elif model_name == "Neural Network":
+        param_grid = {
+            "hidden_layer_sizes": [(64, 32), (128, 64), (256, 128)],
+            "dropout": [0.0, 0.1, 0.2,0.3,0.4,0.5],
+            "epochs": [100, 200, 300, 400, 500],
+        }
+
+        grid = GridSearchCV(
+            estimator=model,
+            param_grid=param_grid,
+            scoring="f1",
+            cv=5,
+            n_jobs=-1,
+            verbose=1,
+        )
+        grid.fit(X_train, y_train)
+        print("Best params for Neural Network:", grid.best_params_)
+        best_model = grid.best_estimator_
     else:
         # Other models: just fit directly (RF, NN, Ensemble)
         best_model.fit(X_train, y_train)
