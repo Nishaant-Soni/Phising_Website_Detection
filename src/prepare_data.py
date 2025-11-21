@@ -3,9 +3,6 @@ prepare_data.py
 ---------------
 One-time script to create and save train/test splits.
 Run this once before training models to ensure all models use the same data.
-
-Usage:
-    python src/prepare_data.py
 """
 
 from data_preprocessing import load_data, preprocess_data, split_data, save_split_data
