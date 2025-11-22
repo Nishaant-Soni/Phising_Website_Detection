@@ -11,13 +11,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-def evaluate(model, X_test, y_test, name):
+def evaluate(model, X_train, y_train, X_test, y_test, name):
     """Compute metrics for a given model."""
+    # Train predictions and accuracy
+    y_train_pred = model.predict(X_train)
+    train_accuracy = accuracy_score(y_train, y_train_pred)
+    
+    # Test predictions and metrics
     y_pred = model.predict(X_test)
     y_proba = model.predict_proba(X_test)[:, 1]
     metrics = {
         "Model": name,
-        "Accuracy": accuracy_score(y_test, y_pred),
+        "Train_Accuracy": train_accuracy,
+        "Test_Accuracy": accuracy_score(y_test, y_pred),
         "Precision": precision_score(y_test, y_pred),
         "Recall": recall_score(y_test, y_pred),
         "F1": f1_score(y_test, y_pred),
@@ -34,9 +40,5 @@ def save_results(metrics_list):
     """Save all model metrics to a summary CSV."""
     df = pd.DataFrame(metrics_list)
     csv_path = "results/metrics_summary.csv"
-    
-    # Check if file exists to determine if we need to write header
     file_exists = os.path.exists(csv_path)
-    
-    # Append to CSV (write header only if file doesn't exist)
     df.to_csv(csv_path, mode='a', header=not file_exists, index=False)

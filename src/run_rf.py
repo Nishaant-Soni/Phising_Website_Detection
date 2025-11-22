@@ -28,7 +28,7 @@ metrics_list = []
 
 best_rf_model = train_model(rf_model, X_train, y_train, "Random Forest")
 
-metrics = evaluate(best_rf_model, X_test, y_test, "Random Forest")
+metrics = evaluate(best_rf_model, X_train, y_train, X_test, y_test, "Random Forest")
 metrics_list.append(metrics)
 
 save_results(metrics_list)

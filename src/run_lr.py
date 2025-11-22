@@ -28,7 +28,7 @@ metrics_list = []
 model = all_models["Logistic Regression"]
 best_model = train_model(model, X_train, y_train, "Logistic Regression")
 
-metrics = evaluate(best_model, X_test, y_test, "Logistic Regression")
+metrics = evaluate(best_model, X_train, y_train, X_test, y_test, "Logistic Regression")
 metrics_list.append(metrics)
 
 save_results(metrics_list)
