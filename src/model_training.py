@@ -16,13 +16,22 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 
-class PyTorchDNN(nn.Module):
-    """PyTorch Deep Neural Network for binary classification."""
+class PyTorchDNN(nn.Module, BaseEstimator, ClassifierMixin):
+    """PyTorch Deep Neural Network for binary classification.
+    
+    Inherits from BaseEstimator and ClassifierMixin to be compatible with sklearn.
+    """
     
     def __init__(self, input_size, hidden_layers=[64, 32], dropout_rate=0.2):
         super(PyTorchDNN, self).__init__()
+        # Store init parameters for sklearn compatibility
+        self.input_size = input_size
+        self.hidden_layers = hidden_layers
+        self.dropout_rate = dropout_rate
+        
         self.scaler = StandardScaler()
         
         layers = []
@@ -44,6 +53,9 @@ class PyTorchDNN(nn.Module):
     
     def fit(self, X, y, epochs=100, batch_size=32, lr=0.001, verbose=False):
         """Train the model."""
+        # Store classes for sklearn compatibility
+        self.classes_ = np.unique(y)
+        
         X_scaled = self.scaler.fit_transform(X)
         y_binary = np.where(y.values == -1, 0, 1)
         
@@ -69,6 +81,8 @@ class PyTorchDNN(nn.Module):
             
             if verbose and (epoch + 1) % 20 == 0:
                 print(f'Epoch [{epoch+1}/{epochs}], Loss: {total_loss/len(dataloader):.4f}')
+        
+        return self  # Required for sklearn compatibility
     
     def predict(self, X):
         """Make predictions."""
@@ -116,13 +130,38 @@ def build_models():
         ),
         "Neural Network": None,  # Will be created dynamically based on input size
     }
-
-    ensemble = VotingClassifier(
-        estimators=[(name, model) for name, model in models.items()],
-        voting="soft"
-    )
-    models["Ensemble"] = ensemble
+    
+    # Note: Ensemble should be created separately with trained models
+    # See build_ensemble() function and run_ensemble.py
     return models
+
+
+def build_ensemble(trained_models):
+    """Build ensemble from already-trained models.
+    
+    Args:
+        trained_models: dict of {'model_name': trained_model_object}
+        
+    Returns:
+        VotingClassifier ensemble
+    """
+    ensemble_models = []
+    preferred_order = [ 'Neural Network', 'Random Forest', 'SVM (RBF)']
+    
+    for name in preferred_order:
+        if name in trained_models and trained_models[name] is not None:
+            ensemble_models.append((name, trained_models[name]))
+    
+    if len(ensemble_models) < 2:
+        raise ValueError("Need at least 2 trained models for ensemble")
+    
+    ensemble = VotingClassifier(
+        estimators=ensemble_models,
+        voting='soft',
+        n_jobs=-1
+    )
+    
+    return ensemble
 
 
 def train_model(model, X_train, y_train, model_name):
@@ -229,7 +268,6 @@ def train_model(model, X_train, y_train, model_name):
         best_model = PyTorchDNN(input_size, hidden_layers=best_config)
         best_model.fit(X_train, y_train, epochs=200, verbose=True)
     else:
-        # Other models: just fit directly (RF, NN, Ensemble)
         best_model.fit(X_train, y_train)
 
     if model_name == "Neural Network":
