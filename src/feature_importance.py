@@ -1,13 +1,13 @@
 """
 Feature Importance Analysis for All 5 Phishing Detection Models
 
-Comprehensive analysis using appropriate methods for each model type:
-- Random Forest: Native feature_importances_ (Gini-based tree importance)
-- Logistic Regression: Coefficient-based importance (absolute coefficient values)  
-- Neural Network, Ensemble, SVM: Permutation importance (model-agnostic approach)
+Unified analysis using permutation importance for fair comparison across all models:
+- All models: Permutation importance (model-agnostic approach)
+- Evaluates feature impact on model performance using F1-score
+- Measures decrease in performance when feature values are shuffled
 
-All analyses performed on training data for fair comparison across models.
-Generates top 10 feature rankings and visualizations.
+All analyses performed on test data for realistic generalization assessment.
+Generates top 10 feature rankings and clean visualizations.
 """
 
 import matplotlib.pyplot as plt
@@ -148,13 +148,9 @@ class FeatureImportanceAnalyzer:
     def analyze_permutation_importance(self, model, model_name):
         """Use permutation importance for general feature importance."""
         print(f"\n=== Permutation Importance Analysis for {model_name} ===")
-        print("Using permutation importance (measures general discriminative power)")
+        print("Using permutation importance on test data for generalization assessment")
         
-        sample_size = len(self.X_train)
-        X_sample = self.X_train.sample(n=sample_size, random_state=42)
-        y_sample = self.y_train.loc[X_sample.index]
-        
-        print(f"Computing permutation importance on {sample_size} samples...")
+        print(f"Computing permutation importance on {len(self.X_test)} test samples...")
         
         if model_name == "Ensemble" and not hasattr(model, 'fit'):
             from sklearn.base import BaseEstimator, ClassifierMixin
@@ -177,7 +173,7 @@ class FeatureImportanceAnalyzer:
             print("Created sklearn-compatible wrapper for ensemble")
         
         perm_importance = permutation_importance(
-            model, X_sample, y_sample, 
+            model, self.X_test, self.y_test, 
             n_repeats=10,  
             random_state=42,
             n_jobs=-1,  
@@ -197,7 +193,7 @@ class FeatureImportanceAnalyzer:
         
         plt.xlabel('Permutation Importance Score (F1-based)', fontsize=13)
         plt.ylabel('Features', fontsize=13)
-        plt.title(f'{model_name}: Top 10 Features\n(Permutation Importance - General Discriminative Power)', 
+        plt.title(f'{model_name}: Top 10 features', 
                  fontsize=15, fontweight='bold', pad=25)
         
         ax.tick_params(axis='y', labelsize=11)
@@ -211,7 +207,7 @@ class FeatureImportanceAnalyzer:
         
         plt.tight_layout(pad=2.0) 
         
-        plot_path = f"results/feature_importance/{model_name.replace(' ', '_').lower()}_permutation_importance.png"
+        plot_path = f"results/feature_importance/{model_name.replace(' ', '_').replace('(', '').replace(')', '').lower()}.png"
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.show()
         print(f"Permutation importance plot saved: {plot_path}")
@@ -225,10 +221,9 @@ class FeatureImportanceAnalyzer:
     def run_comprehensive_analysis(self):
         """Run feature importance analysis for all 5 trained models."""
         print("Starting Feature Importance Analysis for All 5 Trained Models")
-        print("Random Forest: Native feature_importances_")
-        print("Logistic Regression: Coefficient-based importance")
-        print("SVM, Neural Network & Ensemble: Permutation importance")
-        print("=" * 90)
+        print("- Unified methodology for fair comparison across all architectures")
+        print("- Evaluates feature impact on generalization performance")
+        print("=" * 80)
         
         results = {}
         
@@ -239,24 +234,11 @@ class FeatureImportanceAnalyzer:
             if model is None:
                 continue
             
-            if model_name == "Random Forest":
-                top_features = self.analyze_rf_native_importance(model, model_name)
-                results[model_name] = {
-                    'method': 'native_importance',
-                    'top_features': top_features
-                }
-            elif model_name == "Logistic Regression":
-                top_features = self.analyze_lr_coeff_importance(model, model_name)
-                results[model_name] = {
-                    'method': 'coefficient_importance',
-                    'top_features': top_features
-                }
-            elif model_name in ["Neural Network", "Ensemble", "SVM (RBF)"]:
-                top_features = self.analyze_permutation_importance(model, model_name)
-                results[model_name] = {
-                    'method': 'permutation_importance',
-                    'top_features': top_features
-                }
+            top_features = self.analyze_permutation_importance(model, model_name)
+            results[model_name] = {
+                'method': 'permutation_importance',
+                'top_features': top_features
+            }
             
         print(f"\n{'='*90}")
         print("Feature Importance Analysis Complete for All 5 Models!")
