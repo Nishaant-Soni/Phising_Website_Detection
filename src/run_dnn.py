@@ -35,7 +35,6 @@ add_models = build_models()
 dnn_model = add_models["Neural Network"]
 metrics_list = []
 
-
 best_dnn = train_model(dnn_model, X_train, y_train, "Neural Network")
 
 metrics = evaluate(best_dnn, X_train, y_train, X_test, y_test, "Neural Network")

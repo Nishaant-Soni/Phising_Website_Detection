@@ -210,8 +210,8 @@ def train_model(model, X_train, y_train, model_name):
     # --- Random Forest tuning ---
     elif model_name == "Random Forest":
         param_grid = {
-            "n_estimators": [80, 90, 100, 150, 180, 200, 250],
-            "max_depth": [10, 20, 30, 35, 40]
+            "n_estimators": [100, 125, 150, 175, 200, 250],
+            "max_depth": [10, 15, 20, 25, 30]
     
         }
 
@@ -228,7 +228,7 @@ def train_model(model, X_train, y_train, model_name):
         print("Best params for Random Forest:", grid.best_params_)
         best_model = grid.best_estimator_
 
-    # -- PyTorch DNN training and tuning ---
+    # -- DNN training and tuning ---
     elif model_name == "Neural Network":
         input_size = X_train.shape[1]
         
