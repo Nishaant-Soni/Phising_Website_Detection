@@ -18,7 +18,7 @@ import joblib
 import os
 import warnings
 import sys
-from src.data_preprocessing import load_split_data
+from data_preprocessing import load_split_data
 from sklearn.inspection import permutation_importance
 
 try:
