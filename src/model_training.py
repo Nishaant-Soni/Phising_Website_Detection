@@ -229,44 +229,94 @@ def train_model(model, X_train, y_train, model_name):
         best_model = grid.best_estimator_
 
     # -- DNN training and tuning ---
+        # -- DNN training and tuning with multiple hyperparameters ---
     elif model_name == "Neural Network":
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import f1_score
+        from itertools import product
+
         input_size = X_train.shape[1]
-        
+
+        # Single train/val split for fair comparison across all configs
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            X_train,
+            y_train,
+            test_size=0.2,
+            random_state=42,
+            stratify=y_train,
+        )
+
         architectures = [
             [64, 32],
             [128, 64],
             [256, 128, 64],
-            [128, 64, 32]
+            [128, 64, 32],
         ]
-        
-        best_f1 = 0
-        best_config = None
-        
-        print("Training PyTorch DNN with different architectures...")
-        for arch in architectures:
-            dnn_model = PyTorchDNN(input_size, hidden_layers=arch)
-            dnn_model.fit(X_train, y_train, epochs=150, verbose=False)
-            
-            from sklearn.model_selection import train_test_split
-            from sklearn.metrics import f1_score
-            X_val_split, _, y_val_split, _ = train_test_split(
-                X_train, y_train, test_size=0.2, random_state=42, stratify=y_train
+        dropout_rates = [0.1, 0.2, 0.3]
+        learning_rates = [1e-3, 5e-4]
+        batch_sizes = [32, 64, 128]
+
+        best_f1 = -1.0
+        best_params = None
+        best_model = None
+
+        print("Training PyTorch DNN with architecture + dropout + lr + batch_size grid...")
+
+        for arch, dropout, lr, batch_size in product(
+            architectures, dropout_rates, learning_rates, batch_sizes
+        ):
+            print(f"Config -> arch={arch}, dropout={dropout}, lr={lr}, batch_size={batch_size}")
+
+            dnn_model = PyTorchDNN(
+                input_size=input_size,
+                hidden_layers=arch,
+                dropout_rate=dropout,
             )
-            
-            y_val_pred = dnn_model.predict(X_val_split)
-            f1 = f1_score(y_val_split, y_val_pred)
-            
-            print(f"Architecture {arch}: F1 = {f1:.4f}")
-            
+
+            # Train on the train split with given hyperparams
+            dnn_model.fit(
+                X_tr,
+                y_tr,
+                epochs=100,          # you can tune this too if needed
+                batch_size=batch_size,
+                lr=lr,
+                verbose=False,
+            )
+
+            # Evaluate on validation split
+            y_val_pred = dnn_model.predict(X_val)
+            f1 = f1_score(y_val, y_val_pred)
+
+            print(f"  -> F1 on val = {f1:.4f}")
+
             if f1 > best_f1:
                 best_f1 = f1
-                best_config = arch
+                best_params = {
+                    "hidden_layers": arch,
+                    "dropout_rate": dropout,
+                    "lr": lr,
+                    "batch_size": batch_size,
+                }
                 best_model = dnn_model
-        
-        print(f"Best architecture: {best_config} with F1 = {best_f1:.4f}")
-        
-        best_model = PyTorchDNN(input_size, hidden_layers=best_config)
-        best_model.fit(X_train, y_train, epochs=200, verbose=True)
+
+        print(f"Best DNN config: {best_params} with F1 = {best_f1:.4f}")
+
+        # Optional: retrain best model on full X_train, y_train with same hyperparams
+        # (good idea if you want to use all data for final model)
+        best_model = PyTorchDNN(
+            input_size=input_size,
+            hidden_layers=best_params["hidden_layers"],
+            dropout_rate=best_params["dropout_rate"],
+        )
+        best_model.fit(
+            X_train,
+            y_train,
+            epochs=150,
+            batch_size=best_params["batch_size"],
+            lr=best_params["lr"],
+            verbose=True,
+        )
+
     else:
         best_model.fit(X_train, y_train)
 

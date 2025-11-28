@@ -22,3 +22,5 @@ Thumbs.db
 
 .conda/
 env/
+.venv/
+venv/
