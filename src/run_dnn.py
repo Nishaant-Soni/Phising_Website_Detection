@@ -20,16 +20,21 @@ Hyperparameter Grid Search:
     - Batch Sizes: 32, 64, 128
 
 Training Process:
-    1. Grid Search Phase:
+    1. Hyperparameter Tuning Phase:
        - 80/20 train/validation split (stratified)
        - Each configuration trained for 100 epochs
        - F1-score evaluated on validation set
-       - Best hyperparameters identified
+       - Best hyperparameters identified 
+       - Best hyperparameters after training were:
+            * Architecture: [256, 128, 64]
+            * Dropout Rate: 0.2
+            * Learning Rate: 0.0005
+            * Batch Size: 128
     
     2. Final Training Phase:
        - Best model retrained on full training data (100%)
        - Extended training: 150 epochs
-       - Uses optimal hyperparameters from grid search
+       - Uses optimal hyperparameters after hyperparameter tuning
        - Maximizes use of available training data
 
 Features:
