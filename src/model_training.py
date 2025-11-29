@@ -175,7 +175,7 @@ def train_model(model, X_train, y_train, model_name):
     if model_name == "Logistic Regression":
         param_grid = {
             "C": [0.01, 0.1, 1, 10, 100],
-            "penalty": ["l2"],   # if you want L1, switch solver to 'saga'
+            "penalty": ["l2"],  
         }
         grid = GridSearchCV(
             estimator=model,
@@ -229,7 +229,6 @@ def train_model(model, X_train, y_train, model_name):
         best_model = grid.best_estimator_
 
     # -- DNN training and tuning ---
-        # -- DNN training and tuning with multiple hyperparameters ---
     elif model_name == "Neural Network":
         from sklearn.model_selection import train_test_split
         from sklearn.metrics import f1_score
@@ -237,7 +236,6 @@ def train_model(model, X_train, y_train, model_name):
 
         input_size = X_train.shape[1]
 
-        # Single train/val split for fair comparison across all configs
         X_tr, X_val, y_tr, y_val = train_test_split(
             X_train,
             y_train,
@@ -253,7 +251,7 @@ def train_model(model, X_train, y_train, model_name):
             [128, 64, 32],
         ]
         dropout_rates = [0.1, 0.2, 0.3]
-        learning_rates = [1e-3, 5e-4]
+        learning_rates = [1e-3, 5e-3, 1e-4, 5e-4]
         batch_sizes = [32, 64, 128]
 
         best_f1 = -1.0
@@ -273,17 +271,15 @@ def train_model(model, X_train, y_train, model_name):
                 dropout_rate=dropout,
             )
 
-            # Train on the train split with given hyperparams
             dnn_model.fit(
                 X_tr,
                 y_tr,
-                epochs=100,          # you can tune this too if needed
+                epochs=100,         
                 batch_size=batch_size,
                 lr=lr,
                 verbose=False,
             )
 
-            # Evaluate on validation split
             y_val_pred = dnn_model.predict(X_val)
             f1 = f1_score(y_val, y_val_pred)
 
@@ -301,8 +297,6 @@ def train_model(model, X_train, y_train, model_name):
 
         print(f"Best DNN config: {best_params} with F1 = {best_f1:.4f}")
 
-        # Optional: retrain best model on full X_train, y_train with same hyperparams
-        # (good idea if you want to use all data for final model)
         best_model = PyTorchDNN(
             input_size=input_size,
             hidden_layers=best_params["hidden_layers"],
