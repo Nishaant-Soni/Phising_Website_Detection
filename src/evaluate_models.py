@@ -59,8 +59,35 @@ def evaluate(model, X_train, y_train, X_test, y_test, name):
     return metrics
 
 def save_results(metrics_list):
-    """Save all model metrics to a summary CSV."""
-    df = pd.DataFrame(metrics_list)
+    """
+    Save all model metrics to a summary CSV.
+    
+    This function properly handles CSV appending by:
+    1. Creating the file with header if it doesn't exist
+    2. Reading existing data and removing duplicates based on Model name
+    3. Appending new results and writing the complete updated data
+    4. Ensuring proper newlines and no duplicate entries
+    """
+    df_new = pd.DataFrame(metrics_list)
     csv_path = "results/metrics_summary.csv"
-    file_exists = os.path.exists(csv_path)
-    df.to_csv(csv_path, mode='a', header=not file_exists, index=False)
+    
+    os.makedirs("results", exist_ok=True)
+    
+    if os.path.exists(csv_path):
+        try:
+            df_existing = pd.read_csv(csv_path)
+            
+            models_to_add = df_new['Model'].tolist()
+            df_existing = df_existing[~df_existing['Model'].isin(models_to_add)]
+            
+            df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+        except Exception as e:
+            print(f"Warning: Could not read existing CSV ({e}). Creating new file.")
+            df_combined = df_new
+    else:
+        df_combined = df_new
+    
+    df_combined.to_csv(csv_path, mode='w', header=True, index=False, lineterminator='\n')
+    
+    print(f"\n✓ Metrics saved to {csv_path}")
+    print(f"  Total models in summary: {len(df_combined)}")
