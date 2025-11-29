@@ -13,11 +13,9 @@ import os
 
 def evaluate(model, X_train, y_train, X_test, y_test, name):
     """Compute metrics for a given model."""
-    # Train predictions and accuracy
     y_train_pred = model.predict(X_train)
     train_accuracy = accuracy_score(y_train, y_train_pred)
     
-    # Test predictions and metrics
     y_pred = model.predict(X_test)
     y_proba = model.predict_proba(X_test)[:, 1]
     metrics = {
@@ -30,7 +28,6 @@ def evaluate(model, X_train, y_train, X_test, y_test, name):
         "ROC-AUC": roc_auc_score(y_test, y_proba)
     }
     
-    # Create output directories if they don't exist
     os.makedirs("results/confusion_matrices", exist_ok=True)
     os.makedirs("results/roc_curves", exist_ok=True)
     
