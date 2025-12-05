@@ -17,7 +17,6 @@ def parse_arff_to_dataframe(arff_file_path):
     with open(arff_file_path, 'r') as f:
         lines = f.readlines()
     
-    # Extract attribute names
     attributes = []
     data_section = False
     data_start_idx = 0
@@ -25,15 +24,12 @@ def parse_arff_to_dataframe(arff_file_path):
     for i, line in enumerate(lines):
         line = line.strip()
         
-        # Check if we've reached the data section
         if line.lower() == '@data':
             data_section = True
             data_start_idx = i + 1
             break
             
-        # Extract attribute names
         if line.lower().startswith('@attribute'):
-            # Parse attribute line: @attribute name type
             parts = line.split()
             if len(parts) >= 2:
                 attr_name = parts[1]
@@ -43,15 +39,12 @@ def parse_arff_to_dataframe(arff_file_path):
     for i, attr in enumerate(attributes, 1):
         print(f"  {i}. {attr}")
     
-    # Extract data rows
     data_rows = []
     for line in lines[data_start_idx:]:
         line = line.strip()
-        if line and not line.startswith('%'):  # Skip empty lines and comments
-            # Split by comma and convert to appropriate types
+        if line and not line.startswith('%'): 
             values = [val.strip() for val in line.split(',')]
             if len(values) == len(attributes):
-                # Convert to integers where possible
                 converted_values = []
                 for val in values:
                     try:
@@ -62,13 +55,11 @@ def parse_arff_to_dataframe(arff_file_path):
     
     print(f"\nExtracted {len(data_rows)} data rows")
     
-    # Create DataFrame
     df = pd.DataFrame(data_rows, columns=attributes)
     
     return df
 
 def main():
-    # File paths
     arff_file = 'Dataset.arff'
     csv_file = 'Dataset.csv'
     xlsx_file = 'Dataset.xlsx'
@@ -76,10 +67,8 @@ def main():
     print("Converting ARFF file to CSV and XLSX formats...")
     print("=" * 60)
     
-    # Parse ARFF file
     df = parse_arff_to_dataframe(arff_file)
     
-    # Display DataFrame info
     print("\nDataFrame Info:")
     print(f"Shape: {df.shape}")
     print(f"Columns: {list(df.columns)}")
@@ -95,12 +84,12 @@ def main():
     # Save to CSV
     print(f"\nSaving to CSV: {csv_file}")
     df.to_csv(csv_file, index=False)
-    print("✓ CSV file created successfully")
+    print("CSV file created successfully")
     
     # Save to XLSX
     print(f"\nSaving to XLSX: {xlsx_file}")
     df.to_excel(xlsx_file, index=False, engine='openpyxl')
-    print("✓ XLSX file created successfully")
+    print("XLSX file created successfully")
     
     print("\n" + "=" * 60)
     print("Conversion completed successfully!")
