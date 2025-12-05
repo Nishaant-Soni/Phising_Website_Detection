@@ -1,13 +1,8 @@
 pandas
 numpy
 scikit-learn
+imbalanced-learn
 matplotlib
 seaborn
-shap
-xgboost
 torch
-requests
-beautifulsoup4
-python-whois
-python-dateutil
-googlesearch-python
+joblib
